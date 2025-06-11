@@ -191,32 +191,95 @@ def download_sample_dataset(save_path='data/imdb_sample.csv', sample_size=1000):
     except Exception as e:
         print(f"Could not download from sklearn, using fallback dataset: {e}")
         
-        # Fallback to a small manually created dataset
+        # Fallback to a manually created dataset
         data = {
             'review': [
+                # Positive reviews
                 'This movie was excellent! Great acting and storyline.',
-                'Worst film I have ever seen. Complete waste of time.',
-                'I enjoyed the performances, but the plot was confusing.',
                 'Amazing cinematography and direction! A masterpiece!',
-                'Terrible acting, boring story. I fell asleep.',
-                'The special effects were good but the story was lacking.',
                 'One of the best films of the year! Highly recommended.',
-                'Disappointing sequel that failed to capture the magic of the original.',
                 'A pleasant surprise with unexpected twists and turns.',
-                'Mediocre at best, forgettable at worst.',
-                # Add more examples to improve the model
                 'Absolutely fantastic film that kept me engaged throughout.',
-                'Complete garbage. The director should be ashamed.',
                 'A heartwarming story with excellent character development.',
-                'Boring from start to finish. I want my money back.',
                 'The performances were incredible and deserving of awards.',
-                'Poorly written dialogue and unconvincing performances.',
                 'A thought-provoking masterpiece that will stay with you.',
-                'Predictable plot with no originality whatsoever.',
                 'Beautiful cinematography and an engaging storyline.',
-                'Confusing narrative that never comes together.'
+                'Outstanding performances and brilliant writing.',
+                'An emotional rollercoaster that delivers on every level.',
+                'Spectacular visuals paired with an incredible soundtrack.',
+                'A triumph of storytelling and cinematic artistry.',
+                'Brilliant acting and a compelling narrative.',
+                'An unforgettable experience that exceeds all expectations.',
+                'Superb direction and outstanding character development.',
+                'A perfect blend of drama, action, and emotion.',
+                'Exceptional writing and phenomenal performances.',
+                'An instant classic that will be remembered for years.',
+                'Magnificent storytelling with breathtaking visuals.',
+                'A genuinely moving and inspiring piece of cinema.',
+                'Flawless execution from start to finish.',
+                'A masterful work of art that touches the soul.',
+                'Incredible depth and nuance in every scene.',
+                'A remarkable achievement in filmmaking.',
+                'Outstanding quality and exceptional entertainment value.',
+                'A brilliant piece of work that exceeds expectations.',
+                'Wonderful performances and excellent production values.',
+                'An extraordinary film with powerful storytelling.',
+                'Fantastic direction and superb acting throughout.',
+                
+                # Negative reviews
+                'Worst film I have ever seen. Complete waste of time.',
+                'Terrible acting, boring story. I fell asleep.',
+                'Disappointing sequel that failed to capture the magic of the original.',
+                'Mediocre at best, forgettable at worst.',
+                'Complete garbage. The director should be ashamed.',
+                'Boring from start to finish. I want my money back.',
+                'Poorly written dialogue and unconvincing performances.',
+                'Predictable plot with no originality whatsoever.',
+                'Confusing narrative that never comes together.',
+                'Absolutely dreadful with no redeeming qualities.',
+                'A complete disaster from beginning to end.',
+                'Painfully slow and utterly pointless.',
+                'Terrible script and wooden acting throughout.',
+                'An insult to intelligence and a waste of talent.',
+                'Boring, predictable, and completely forgettable.',
+                'Poor direction and laughably bad dialogue.',
+                'A mess of a film with no coherent storyline.',
+                'Extremely disappointing and poorly executed.',
+                'Awful performances and a ridiculous plot.',
+                'A tedious experience that feels endless.',
+                'Completely underwhelming and poorly crafted.',
+                'Terrible pacing and unconvincing characters.',
+                'A poorly made film with no entertainment value.',
+                'Dull, lifeless, and completely unengaging.',
+                'An embarrassing effort that misses the mark.',
+                'Poorly conceived and badly executed throughout.',
+                'A catastrophic failure in every aspect.',
+                'Horrendously bad with no saving grace.',
+                'An absolute disaster that should be avoided.',
+                'Painfully boring and completely worthless.',
+                
+                # Neutral/Mixed reviews (some positive, some negative sentiment)
+                'I enjoyed the performances, but the plot was confusing.',
+                'The special effects were good but the story was lacking.',
+                'Decent acting but the story felt rushed and incomplete.',
+                'Good cinematography but the dialogue was weak.',
+                'Interesting concept but poor execution overall.',
+                'Great visuals but lacks emotional depth.',
+                'Solid performances marred by a weak script.',
+                'Beautiful locations but a forgettable story.',
+                'Good action sequences but terrible character development.',
+                'Impressive production values but uninspiring plot.'
             ],
-            'sentiment': [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]  # 1 for positive, 0 for negative
+            'sentiment': [
+                # Positive sentiments (40 reviews)
+                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                # Negative sentiments (30 reviews)
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                # Mixed/Neutral treated as negative (10 reviews)
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            ]
         }
         
         df = pd.DataFrame(data)

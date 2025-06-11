@@ -1,0 +1,6 @@
+text,cleaned_text,true_label,predicted_label,correct,confidence
+A pleasant surprise with unexpected twists and turns.,a pleasant surprise with unexpected twists and turns,1,0,False,0.5714285714285714
+Beautiful cinematography and an engaging storyline.,beautiful cinematography and an engaging storyline,1,0,False,0.6592230304795829
+A remarkable achievement in filmmaking.,a remarkable achievement in filmmaking,1,0,False,0.5714285714285714
+A poorly made film with no entertainment value.,a poorly made film with no entertainment value,0,1,False,0.7191921006881791
+Good action sequences but terrible character development.,good action sequences but terrible character development,0,1,False,0.7622834099734375

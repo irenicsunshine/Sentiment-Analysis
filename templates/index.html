@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentiment Analysis Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .sentiment-positive { color: #28a745; }
+        .sentiment-negative { color: #dc3545; }
+        .sentiment-neutral { color: #6c757d; }
+        .confidence-bar {
+            height: 20px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        .result-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        .result-card.positive { border-left-color: #28a745; }
+        .result-card.negative { border-left-color: #dc3545; }
+        .result-card.neutral { border-left-color: #6c757d; }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .analysis-history {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .intensity-badge {
+            font-size: 0.8em;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="row">
+            <div class="col-12">
+                <div class="gradient-bg p-4 mb-4">
+                    <div class="container">
+                        <h1 class="display-4 mb-0">
+                            <i class="fas fa-brain"></i> Advanced Sentiment Analysis
+                        </h1>
+                        <p class="lead mb-0">Analyze text sentiment with confidence scores and intensity levels</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                <!-- Main Analysis Panel -->
+                <div class="col-lg-8">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-keyboard"></i> Text Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="textInput" class="form-label">Enter text to analyze:</label>
+                                <textarea class="form-control" id="textInput" rows="4" 
+                                    placeholder="Type your text here... (e.g., 'This movie was fantastic!')" 
+                                    style="resize: vertical;"></textarea>
+                            </div>
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                                <button class="btn btn-primary btn-lg" id="analyzeBtn" onclick="analyzeText()">
+                                    <i class="fas fa-search"></i> Analyze Sentiment
+                                </button>
+                                <button class="btn btn-outline-secondary" onclick="clearInput()">
+                                    <i class="fas fa-eraser"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results Section -->
+                    <div id="resultsSection" style="display: none;">
+                        <div class="card shadow-sm mb-4 result-card" id="resultCard">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Analysis Results</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Sentiment:</h6>
+                                        <h3 id="sentimentResult">
+                                            <span id="sentimentIcon"></span>
+                                            <span id="sentimentText"></span>
+                                        </h3>
+                                        <span class="badge intensity-badge" id="intensityBadge"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Confidence Score:</h6>
+                                        <div class="progress mb-2" style="height: 25px;">
+                                            <div class="progress-bar confidence-bar" id="confidenceBar" 
+                                                role="progressbar" style="width: 0%">
+                                                <span id="confidenceText">0%</span>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">Sentiment Score: <span id="sentimentScore">0.0</span></small>
+                                    </div>
+                                </div>
+                                
+                                <hr>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Probability Distribution:</h6>
+                                        <div class="mb-2">
+                                            <small class="text-muted">Positive:</small>
+                                            <div class="progress" style="height: 15px;">
+                                                <div class="progress-bar bg-success" id="positiveBar" 
+                                                    style="width: 0%"></div>
+                                            </div>
+                                            <small id="positivePercent">0%</small>
+                                        </div>
+                                        <div class="mb-2">
+                                            <small class="text-muted">Negative:</small>
+                                            <div class="progress" style="height: 15px;">
+                                                <div class="progress-bar bg-danger" id="negativeBar" 
+                                                    style="width: 0%"></div>
+                                            </div>
+                                            <small id="negativePercent">0%</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Processed Text:</h6>
+                                        <div class="bg-light p-2 rounded">
+                                            <small class="font-monospace" id="cleanedText"></small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="col-lg-4">
+                    <!-- Quick Examples -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="fas fa-lightbulb"></i> Quick Examples</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-success btn-sm text-start" 
+                                    onclick="setExample('This movie was absolutely fantastic! The acting was superb.')">
+                                    <i class="fas fa-thumbs-up"></i> Positive Example
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm text-start" 
+                                    onclick="setExample('This was the worst movie ever. Terrible acting and boring plot.')">
+                                    <i class="fas fa-thumbs-down"></i> Negative Example
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm text-start" 
+                                    onclick="setExample('The movie was okay, nothing special but watchable.')">
+                                    <i class="fas fa-minus"></i> Neutral Example
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Statistics -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-warning text-dark">
+                            <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Session Statistics</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <h4 class="text-primary" id="totalAnalyses">0</h4>
+                                    <small>Total</small>
+                                </div>
+                                <div class="col-4">
+                                    <h4 class="text-success" id="positiveCount">0</h4>
+                                    <small>Positive</small>
+                                </div>
+                                <div class="col-4">
+                                    <h4 class="text-danger" id="negativeCount">0</h4>
+                                    <small>Negative</small>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="text-center">
+                                <small class="text-muted">Average Confidence: <span id="avgConfidence">0%</span></small>
+                            </div>
+                            <div class="d-grid gap-2 mt-3">
+                                <button class="btn btn-outline-warning btn-sm" onclick="viewHistory()">
+                                    <i class="fas fa-history"></i> View History
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" onclick="clearHistory()">
+                                    <i class="fas fa-trash"></i> Clear History
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analysis History -->
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-secondary text-white">
+                            <h6 class="mb-0"><i class="fas fa-history"></i> Recent Analyses</h6>
+                        </div>
+                        <div class="card-body analysis-history" id="historyContainer">
+                            <p class="text-muted text-center">No analyses yet. Start by entering some text above!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 mb-0">Analyzing sentiment...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let analysisHistory = [];
+
+        function analyzeText() {
+            const text = document.getElementById('textInput').value.trim();
+            if (!text) {
+                alert('Please enter some text to analyze.');
+                return;
+            }
+
+            // Show loading modal
+            const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+            loadingModal.show();
+
+            // Make API request
+            fetch('/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: text })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingModal.hide();
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    displayResults(data);
+                    updateStatistics();
+                }
+            })
+            .catch(error => {
+                loadingModal.hide();
+                console.error('Error:', error);
+                alert('An error occurred while analyzing the text.');
+            });
+        }
+
+        function displayResults(result) {
+            // Show results section
+            document.getElementById('resultsSection').style.display = 'block';
+            
+            // Update sentiment
+            const sentimentIcon = document.getElementById('sentimentIcon');
+            const sentimentText = document.getElementById('sentimentText');
+            const resultCard = document.getElementById('resultCard');
+            const intensityBadge = document.getElementById('intensityBadge');
+            
+            if (result.sentiment === 'positive') {
+                sentimentIcon.innerHTML = '<i class="fas fa-smile text-success"></i>';
+                sentimentText.textContent = 'Positive';
+                sentimentText.className = 'sentiment-positive';
+                resultCard.className = 'card shadow-sm mb-4 result-card positive';
+                intensityBadge.className = 'badge bg-success intensity-badge';
+            } else {
+                sentimentIcon.innerHTML = '<i class="fas fa-frown text-danger"></i>';
+                sentimentText.textContent = 'Negative';
+                sentimentText.className = 'sentiment-negative';
+                resultCard.className = 'card shadow-sm mb-4 result-card negative';
+                intensityBadge.className = 'badge bg-danger intensity-badge';
+            }
+            
+            intensityBadge.textContent = result.intensity;
+            
+            // Update confidence
+            const confidence = Math.round(result.confidence);
+            document.getElementById('confidenceText').textContent = confidence + '%';
+            document.getElementById('confidenceBar').style.width = confidence + '%';
+            
+            // Color code confidence bar
+            const confidenceBar = document.getElementById('confidenceBar');
+            if (confidence >= 80) {
+                confidenceBar.className = 'progress-bar confidence-bar bg-success';
+            } else if (confidence >= 60) {
+                confidenceBar.className = 'progress-bar confidence-bar bg-warning';
+            } else {
+                confidenceBar.className = 'progress-bar confidence-bar bg-danger';
+            }
+            
+            // Update sentiment score
+            document.getElementById('sentimentScore').textContent = result.sentiment_score.toFixed(3);
+            
+            // Update probability bars
+            const posPercent = Math.round(result.probabilities.positive);
+            const negPercent = Math.round(result.probabilities.negative);
+            
+            document.getElementById('positiveBar').style.width = posPercent + '%';
+            document.getElementById('negativeBar').style.width = negPercent + '%';
+            document.getElementById('positivePercent').textContent = posPercent + '%';
+            document.getElementById('negativePercent').textContent = negPercent + '%';
+            
+            // Update cleaned text
+            document.getElementById('cleanedText').textContent = result.cleaned_text;
+            
+            // Add to history
+            addToHistory(result);
+            
+            // Scroll to results
+            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function addToHistory(result) {
+            const historyContainer = document.getElementById('historyContainer');
+            
+            // Create history item
+            const historyItem = document.createElement('div');
+            historyItem.className = 'border-bottom pb-2 mb-2';
+            
+            const sentimentClass = result.sentiment === 'positive' ? 'text-success' : 'text-danger';
+            const sentimentIcon = result.sentiment === 'positive' ? 'fas fa-thumbs-up' : 'fas fa-thumbs-down';
+            
+            historyItem.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <small class="text-muted">${result.text.substring(0, 50)}${result.text.length > 50 ? '...' : ''}</small>
+                        <br>
+                        <small class="${sentimentClass}">
+                            <i class="${sentimentIcon}"></i> ${result.sentiment.toUpperCase()} 
+                            (${Math.round(result.confidence)}%)
+                        </small>
+                    </div>
+                </div>
+            `;
+            
+            // Add to top of history
+            if (historyContainer.firstChild) {
+                historyContainer.insertBefore(historyItem, historyContainer.firstChild);
+            } else {
+                historyContainer.appendChild(historyItem);
+            }
+            
+            // Remove "no analyses" message if it exists
+            const noAnalysesMsg = historyContainer.querySelector('.text-muted.text-center');
+            if (noAnalysesMsg) {
+                noAnalysesMsg.remove();
+            }
+            
+            // Keep only last 10 items
+            const historyItems = historyContainer.querySelectorAll('.border-bottom');
+            if (historyItems.length > 10) {
+                historyItems[historyItems.length - 1].remove();
+            }
+        }
+
+        function updateStatistics() {
+            fetch('/stats')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('totalAnalyses').textContent = data.total_analyses;
+                document.getElementById('positiveCount').textContent = data.positive_count;
+                document.getElementById('negativeCount').textContent = data.negative_count;
+                document.getElementById('avgConfidence').textContent = Math.round(data.average_confidence) + '%';
+            });
+        }
+
+        function setExample(text) {
+            document.getElementById('textInput').value = text;
+        }
+
+        function clearInput() {
+            document.getElementById('textInput').value = '';
+            document.getElementById('resultsSection').style.display = 'none';
+        }
+
+        function viewHistory() {
+            fetch('/history')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Analysis History:', data);
+                alert(`Total analyses: ${data.length}\nCheck browser console for full history.`);
+            });
+        }
+
+        function clearHistory() {
+            if (confirm('Are you sure you want to clear the analysis history?')) {
+                fetch('/clear_history', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('historyContainer').innerHTML = 
+                        '<p class="text-muted text-center">No analyses yet. Start by entering some text above!</p>';
+                    updateStatistics();
+                });
+            }
+        }
+
+        // Allow Enter key to submit
+        document.getElementById('textInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                analyzeText();
+            }
+        });
+
+        // Load initial statistics
+        updateStatistics();
+    </script>
+</body>
+</html>
