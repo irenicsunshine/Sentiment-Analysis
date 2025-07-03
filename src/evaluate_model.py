@@ -72,8 +72,23 @@ def evaluate_model(args):
     precision = precision_score(y_true, y_pred, average='weighted')
     recall = recall_score(y_true, y_pred, average='weighted')
     f1 = f1_score(y_true, y_pred, average='weighted')
-    report = classification_report(y_true, y_pred)
+    report = classification_report(y_true, y_pred, output_dict=False)
+    report_dict = classification_report(y_true, y_pred, output_dict=True)
     cm = confusion_matrix(y_true, y_pred)
+    # ROC-AUC (for binary)
+    roc_auc = None
+    if y_proba is not None and len(np.unique(y_true)) == 2:
+        fpr, tpr, _ = roc_curve(y_true, y_proba[:, 1])
+        roc_auc = auc(fpr, tpr)
+    # SHAP explainability (if possible)
+    try:
+        import shap
+        explainer = shap.Explainer(model, feature_extractor.transform)
+        shap_values = explainer(feature_extractor.transform(processed_df['cleaned_text']))
+        shap.summary_plot(shap_values, feature_names=feature_extractor.get_feature_names(), show=False)
+        plt.savefig(os.path.join(args.results_dir, 'shap_summary.png'))
+    except Exception as e:
+        print(f"Warning: SHAP explainability failed: {e}")
     
     # Step 6: Print results
     print("\nModel evaluation results:")
@@ -81,8 +96,14 @@ def evaluate_model(args):
     print(f"Precision: {precision:.4f}")
     print(f"Recall: {recall:.4f}")
     print(f"F1 Score: {f1:.4f}")
+    if roc_auc is not None:
+        print(f"ROC-AUC: {roc_auc:.4f}")
     print("\nClassification Report:")
     print(report)
+    print("\nPer-class metrics:")
+    for label, metrics in report_dict.items():
+        if isinstance(metrics, dict):
+            print(f"Class {label}: {metrics}")
     
     # Step 7: Generate visualizations
     os.makedirs(args.results_dir, exist_ok=True)
