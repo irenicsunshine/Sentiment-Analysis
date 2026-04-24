@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Advanced Sentiment Analysis Web Application
-Flask backend with multi-backend SOTA engine.
+Flask backend with multi-backend SOTA engine + Neon Postgres history.
 """
 
 import os
@@ -9,13 +9,17 @@ import sys
 import json
 import logging
 from datetime import datetime
+from contextlib import contextmanager
 
 import pandas as pd
 import matplotlib
-matplotlib.use("Agg")  # headless backend
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import io
 import base64
+
+import psycopg2
+import psycopg2.extras
 
 from flask import Flask, render_template, request, jsonify, Response
 
@@ -32,16 +36,156 @@ logger = logging.getLogger(__name__)
 # ─── App setup ────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 
-# Global engine & history
 _engine = None
-analysis_history = []
+MAX_TEXT_LENGTH = 5_000
+MAX_BATCH_SIZE  = 50
 
-MAX_TEXT_LENGTH = 5_000  # characters
-MAX_BATCH_SIZE = 50
+DATABASE_URL = os.getenv("DATABASE_URL")
 
+# Run on every cold start (CREATE TABLE IF NOT EXISTS is safe to repeat)
+try:
+    if DATABASE_URL:
+        import psycopg2 as _pg
+        _c = _pg.connect(DATABASE_URL)
+        _cur = _c.cursor()
+        _cur.execute("""
+            CREATE TABLE IF NOT EXISTS analysis_history (
+                id              SERIAL PRIMARY KEY,
+                text            TEXT,
+                sentiment       VARCHAR(20),
+                sentiment_score FLOAT,
+                confidence      FLOAT,
+                intensity       VARCHAR(50),
+                emotions        TEXT,
+                sarcasm_score   FLOAT,
+                timestamp       TIMESTAMPTZ DEFAULT NOW()
+            );
+        """)
+        _c.commit()
+        _c.close()
+except Exception as _e:
+    logger.warning("DB init skipped: %s", _e)
+
+
+# ─── DB helpers ───────────────────────────────────────────────────────────────
+
+@contextmanager
+def get_db():
+    """Open a short-lived Postgres connection, commit & close on exit."""
+    conn = psycopg2.connect(DATABASE_URL)
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def init_db():
+    """Create history table if it doesn't exist yet."""
+    if not DATABASE_URL:
+        return
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS analysis_history (
+                    id              SERIAL PRIMARY KEY,
+                    text            TEXT,
+                    sentiment       VARCHAR(20),
+                    sentiment_score FLOAT,
+                    confidence      FLOAT,
+                    intensity       VARCHAR(50),
+                    emotions        TEXT,
+                    sarcasm_score   FLOAT,
+                    timestamp       TIMESTAMPTZ DEFAULT NOW()
+                );
+            """)
+    logger.info("DB initialised")
+
+
+def db_insert(record: dict):
+    if not DATABASE_URL:
+        return
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO analysis_history
+                    (text, sentiment, sentiment_score, confidence, intensity, emotions, sarcasm_score, timestamp)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                record["text"],
+                record["sentiment"],
+                record["sentiment_score"],
+                record["confidence"],
+                record["intensity"],
+                json.dumps(record.get("emotions", {})),
+                record["sarcasm_score"],
+                record["timestamp"],
+            ))
+
+
+def db_fetch(limit: int = 100) -> list:
+    if not DATABASE_URL:
+        return []
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT text, sentiment, sentiment_score, confidence,
+                       intensity, emotions, sarcasm_score,
+                       timestamp AT TIME ZONE 'UTC' AS timestamp
+                FROM analysis_history
+                ORDER BY timestamp DESC
+                LIMIT %s
+            """, (limit,))
+            rows = cur.fetchall()
+    result = []
+    for row in rows:
+        r = dict(row)
+        r["emotions"] = json.loads(r["emotions"]) if r["emotions"] else {}
+        r["timestamp"] = r["timestamp"].isoformat()
+        result.append(r)
+    return list(reversed(result))
+
+
+def db_clear():
+    if not DATABASE_URL:
+        return
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM analysis_history;")
+
+
+def db_stats() -> dict:
+    if not DATABASE_URL:
+        return {}
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    COUNT(*) AS total,
+                    AVG(confidence) AS avg_conf,
+                    AVG(sentiment_score) AS avg_score,
+                    SUM(CASE WHEN sentiment='positive' THEN 1 ELSE 0 END) AS pos,
+                    SUM(CASE WHEN sentiment='negative' THEN 1 ELSE 0 END) AS neg,
+                    SUM(CASE WHEN sentiment='neutral'  THEN 1 ELSE 0 END) AS neu
+                FROM analysis_history;
+            """)
+            row = cur.fetchone()
+    return {
+        "total": row[0] or 0,
+        "avg_conf": float(row[1] or 0),
+        "avg_score": float(row[2] or 0),
+        "pos": row[3] or 0,
+        "neg": row[4] or 0,
+        "neu": row[5] or 0,
+    }
+
+
+# ─── Engine ───────────────────────────────────────────────────────────────────
 
 def get_engine():
-    """Lazy-load and cache the sentiment engine."""
     global _engine
     if _engine is None:
         from src.sentiment_engine import SentimentEngine
@@ -66,7 +210,7 @@ def health():
     return jsonify({
         "status": "ok",
         "backends": engine.available_backends,
-        "history_count": len(analysis_history),
+        "db": "connected" if DATABASE_URL else "none",
     })
 
 
@@ -83,16 +227,15 @@ def analyze():
     try:
         engine = get_engine()
         result = engine.analyze(text)
-        result["timestamp"] = datetime.now().isoformat()
+        result["timestamp"] = datetime.utcnow().isoformat()
 
-        # Store lightweight record in history
-        analysis_history.append({
+        db_insert({
             "text": text[:200],
             "sentiment": result["sentiment"],
             "sentiment_score": result["sentiment_score"],
             "confidence": result["confidence"],
             "intensity": result["intensity"],
-            "emotions": result["emotions"],
+            "emotions": result.get("emotions", {}),
             "sarcasm_score": result["sarcasm_score"],
             "timestamp": result["timestamp"],
         })
@@ -113,14 +256,13 @@ def batch_analyze():
     if len(texts) > MAX_BATCH_SIZE:
         return jsonify({"error": f"Max batch size is {MAX_BATCH_SIZE}"}), 400
 
-    # Sanitize
     texts = [(t[:MAX_TEXT_LENGTH] if isinstance(t, str) else "") for t in texts]
 
     try:
         engine = get_engine()
         results = engine.analyze_batch(texts)
         for r in results:
-            r["timestamp"] = datetime.now().isoformat()
+            r["timestamp"] = datetime.utcnow().isoformat()
         return jsonify({"results": results, "count": len(results)})
     except Exception as exc:
         logger.exception("Batch analysis error")
@@ -130,12 +272,13 @@ def batch_analyze():
 @app.route("/history")
 def history():
     limit = min(int(request.args.get("limit", 100)), 500)
-    return jsonify(analysis_history[-limit:])
+    return jsonify(db_fetch(limit))
 
 
 @app.route("/stats")
 def stats():
-    if not analysis_history:
+    s = db_stats()
+    if not s or s["total"] == 0:
         return jsonify({
             "total_analyses": 0,
             "sentiment_counts": {"positive": 0, "negative": 0, "neutral": 0},
@@ -144,30 +287,21 @@ def stats():
             "chart_url": None,
         })
 
-    pos = sum(1 for a in analysis_history if a["sentiment"] == "positive")
-    neg = sum(1 for a in analysis_history if a["sentiment"] == "negative")
-    neu = sum(1 for a in analysis_history if a["sentiment"] == "neutral")
-    avg_conf = sum(a["confidence"] for a in analysis_history) / len(analysis_history)
-    avg_score = sum(a["sentiment_score"] for a in analysis_history) / len(analysis_history)
-
-    chart_url = _create_stats_chart()
-
     return jsonify({
-        "total_analyses": len(analysis_history),
-        "sentiment_counts": {"positive": pos, "negative": neg, "neutral": neu},
-        "average_confidence": round(avg_conf, 2),
-        "average_score": round(avg_score, 4),
-        "chart_url": chart_url,
+        "total_analyses": s["total"],
+        "sentiment_counts": {"positive": s["pos"], "negative": s["neg"], "neutral": s["neu"]},
+        "average_confidence": round(s["avg_conf"], 2),
+        "average_score": round(s["avg_score"], 4),
+        "chart_url": _create_stats_chart(s),
     })
 
 
 @app.route("/export_csv")
 def export_csv():
-    """Download analysis history as CSV."""
-    if not analysis_history:
+    rows = db_fetch(500)
+    if not rows:
         return jsonify({"error": "No history to export"}), 404
-
-    df = pd.DataFrame(analysis_history)
+    df = pd.DataFrame(rows)
     csv_data = df.to_csv(index=False)
     return Response(
         csv_data,
@@ -178,49 +312,32 @@ def export_csv():
 
 @app.route("/clear_history", methods=["POST"])
 def clear_history():
-    global analysis_history
-    analysis_history = []
+    db_clear()
     return jsonify({"message": "History cleared"})
 
 
 # ─── Chart helper ─────────────────────────────────────────────────────────────
 
-def _create_stats_chart() -> str | None:
+def _create_stats_chart(s: dict) -> str | None:
     try:
-        df = pd.DataFrame(analysis_history)
-
         fig, axes = plt.subplots(1, 2, figsize=(11, 4))
         fig.patch.set_facecolor("#1e1e2e")
 
-        # Pie chart
         ax1 = axes[0]
-        counts = df["sentiment"].value_counts()
-        colors = {
-            "positive": "#a6e3a1",
-            "negative": "#f38ba8",
-            "neutral": "#cdd6f4",
-        }
-        pie_colors = [colors.get(s, "#cdd6f4") for s in counts.index]
-        ax1.pie(
-            counts.values,
-            labels=counts.index,
-            autopct="%1.1f%%",
-            colors=pie_colors,
-            textprops={"color": "#cdd6f4"},
-        )
+        labels = ["positive", "negative", "neutral"]
+        values = [s["pos"], s["neg"], s["neu"]]
+        colors = ["#a6e3a1", "#f38ba8", "#cdd6f4"]
+        ax1.pie(values, labels=labels, autopct="%1.1f%%", colors=colors,
+                textprops={"color": "#cdd6f4"})
         ax1.set_title("Sentiment Distribution", color="#cdd6f4")
         ax1.set_facecolor("#1e1e2e")
 
-        # Score histogram
         ax2 = axes[1]
         ax2.set_facecolor("#313244")
-        ax2.hist(
-            df["sentiment_score"],
-            bins=20,
-            color="#89b4fa",
-            edgecolor="#1e1e2e",
-            alpha=0.85,
-        )
+        rows = db_fetch(500)
+        if rows:
+            scores = [r["sentiment_score"] for r in rows]
+            ax2.hist(scores, bins=20, color="#89b4fa", edgecolor="#1e1e2e", alpha=0.85)
         ax2.axvline(x=0, color="#f38ba8", linestyle="--", alpha=0.8, linewidth=1.5)
         ax2.set_xlabel("Sentiment Score", color="#cdd6f4")
         ax2.set_ylabel("Frequency", color="#cdd6f4")
@@ -230,7 +347,6 @@ def _create_stats_chart() -> str | None:
             spine.set_edgecolor("#45475a")
 
         plt.tight_layout()
-
         buf = io.BytesIO()
         plt.savefig(buf, format="png", bbox_inches="tight", facecolor="#1e1e2e")
         buf.seek(0)
@@ -245,10 +361,9 @@ def _create_stats_chart() -> str | None:
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5001))
+    init_db()
+    port  = int(os.getenv("PORT", 5001))
     debug = os.getenv("FLASK_DEBUG", "false").lower() in ("1", "true", "yes")
-
     logger.info("Starting Sentiment Analysis app on port %d …", port)
-    # Warm up engine before first request
     get_engine()
     app.run(debug=debug, host="0.0.0.0", port=port)
