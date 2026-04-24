@@ -11,13 +11,8 @@ import logging
 from datetime import datetime
 from contextlib import contextmanager
 
-import pandas as pd
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+import csv
 import io
-import base64
-
 import psycopg2
 import psycopg2.extras
 
@@ -301,10 +296,13 @@ def export_csv():
     rows = db_fetch(500)
     if not rows:
         return jsonify({"error": "No history to export"}), 404
-    df = pd.DataFrame(rows)
-    csv_data = df.to_csv(index=False)
+    buf = io.StringIO()
+    fields = ["text", "sentiment", "sentiment_score", "confidence", "intensity", "sarcasm_score", "timestamp"]
+    writer = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(rows)
     return Response(
-        csv_data,
+        buf.getvalue(),
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=sentiment_history.csv"},
     )
@@ -316,46 +314,9 @@ def clear_history():
     return jsonify({"message": "History cleared"})
 
 
-# ─── Chart helper ─────────────────────────────────────────────────────────────
-
-def _create_stats_chart(s: dict) -> str | None:
-    try:
-        fig, axes = plt.subplots(1, 2, figsize=(11, 4))
-        fig.patch.set_facecolor("#1e1e2e")
-
-        ax1 = axes[0]
-        labels = ["positive", "negative", "neutral"]
-        values = [s["pos"], s["neg"], s["neu"]]
-        colors = ["#a6e3a1", "#f38ba8", "#cdd6f4"]
-        ax1.pie(values, labels=labels, autopct="%1.1f%%", colors=colors,
-                textprops={"color": "#cdd6f4"})
-        ax1.set_title("Sentiment Distribution", color="#cdd6f4")
-        ax1.set_facecolor("#1e1e2e")
-
-        ax2 = axes[1]
-        ax2.set_facecolor("#313244")
-        rows = db_fetch(500)
-        if rows:
-            scores = [r["sentiment_score"] for r in rows]
-            ax2.hist(scores, bins=20, color="#89b4fa", edgecolor="#1e1e2e", alpha=0.85)
-        ax2.axvline(x=0, color="#f38ba8", linestyle="--", alpha=0.8, linewidth=1.5)
-        ax2.set_xlabel("Sentiment Score", color="#cdd6f4")
-        ax2.set_ylabel("Frequency", color="#cdd6f4")
-        ax2.set_title("Score Distribution", color="#cdd6f4")
-        ax2.tick_params(colors="#cdd6f4")
-        for spine in ax2.spines.values():
-            spine.set_edgecolor("#45475a")
-
-        plt.tight_layout()
-        buf = io.BytesIO()
-        plt.savefig(buf, format="png", bbox_inches="tight", facecolor="#1e1e2e")
-        buf.seek(0)
-        encoded = base64.b64encode(buf.getvalue()).decode()
-        plt.close(fig)
-        return encoded
-    except Exception as exc:
-        logger.warning("Chart creation failed: %s", exc)
-        return None
+def _create_stats_chart(s: dict) -> None:
+    # Chart removed — UI renders its own SVG donut from /history data
+    return None
 
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
