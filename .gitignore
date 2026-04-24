@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Data (large training CSVs — regenerate with retrain.py)
+data/
+
+# Generated results / charts
+results/
+
+# Jupyter artifacts
+notebooks/.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# Claude Code local settings
+.claude/
+
+# Env / secrets
+.env
+*.env
+
+# Unused old model
+models/enhanced_sentiment_model.pkl
+notebooks/

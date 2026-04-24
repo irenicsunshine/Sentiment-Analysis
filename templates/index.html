@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SentimentAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+
+    :root {
+      --dark:      #0C180C;
+      --panel:     #243C2C;
+      --card:      #D2E6C4;
+      --card-dark: #1C3422;
+      --accent:    #50A85A;
+      --white:     #EEF4EB;
+      --muted:     #5C7C60;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── Breathing background halves ─────────── */
+    .bg-l, .bg-r {
+      position: fixed; top: 0; height: 100%;
+      width: 50%; z-index: -1; pointer-events: none;
+    }
+    .bg-l { left:  0; background: #0C180C; animation: breathe-l 10s ease-in-out infinite; }
+    .bg-r { right: 0; background: #243C2C; animation: breathe-r 10s ease-in-out infinite; }
+    @keyframes breathe-l { 0%,100%{background:#0C180C} 50%{background:#111e11} }
+    @keyframes breathe-r { 0%,100%{background:#243C2C} 50%{background:#2c4835} }
+
+    /* ── Keyframes ────────────────────────────── */
+    @keyframes fadeUp   { from { opacity:0; transform:translateY(22px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
+    @keyframes rot      { to { transform:rotate(360deg); } }
+    @keyframes pulse-ring { 0%,100%{box-shadow:0 0 0 0 rgba(80,168,90,0);} 50%{box-shadow:0 0 0 6px rgba(80,168,90,0.18);} }
+    @keyframes float-a  { 0%,100%{transform:translateY(0) translateX(0);} 33%{transform:translateY(-18px) translateX(8px);} 66%{transform:translateY(10px) translateX(-6px);} }
+    @keyframes float-b  { 0%,100%{transform:translateY(0) translateX(0);} 40%{transform:translateY(14px) translateX(-10px);} 70%{transform:translateY(-8px) translateX(5px);} }
+    @keyframes float-c  { 0%,100%{transform:translateY(0) translateX(0);} 25%{transform:translateY(-12px) translateX(4px);} 75%{transform:translateY(16px) translateX(-8px);} }
+    @keyframes shimmer  { 0%{background-position:200% center;} 100%{background-position:-200% center;} }
+    @keyframes bar-in   { from{width:0;} }
+    @keyframes slide-in { from{opacity:0;transform:translateX(-10px);} to{opacity:1;transform:translateX(0);} }
+
+    /* ── Entrance animations ──────────────────── */
+    .logo       { animation: fadeUp .55s ease both .05s; }
+    .brand-hed  { animation: fadeUp .65s ease both .15s; }
+    .brand-sub  { animation: fadeUp .6s  ease both .28s; }
+    .tab-row    { animation: fadeUp .6s  ease both .3s;  }
+    .chips      { animation: fadeUp .6s  ease both .42s; }
+    .icard      { animation: fadeUp .65s ease both .52s; }
+    .hint       { animation: fadeIn .5s  ease both .7s;  }
+
+    /* ── Logo ring pulse ──────────────────────── */
+    .logo-ring  { animation: pulse-ring 3s ease-in-out infinite; }
+
+    /* ── Headline shimmer on hover ────────────── */
+    .brand-hed em {
+      font-style: italic;
+      background: linear-gradient(90deg, var(--accent) 0%, #8ee898 40%, var(--accent) 60%, #6dcc78 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 4s linear infinite;
+    }
+
+
+
+    /* ── Input card lift on focus ─────────────── */
+    .icard { transition: box-shadow 0.3s ease, transform 0.3s ease; }
+    .icard:focus-within {
+      box-shadow: 0 8px 32px rgba(80,168,90,0.18), 0 2px 8px rgba(0,0,0,0.2);
+      transform: translateY(-2px);
+    }
+
+    /* ── Analyze button pulse when active ─────── */
+    .btn-go { transition: opacity 0.18s, transform 0.18s, box-shadow 0.2s; }
+    .btn-go:not(:disabled):hover { transform: scale(1.04); box-shadow: 0 4px 16px rgba(28,52,34,0.35); }
+    .btn-go:not(:disabled):active { transform: scale(0.97); }
+    .btn-go.ready { animation: pulse-ring 2.2s ease-in-out infinite; }
+
+    /* ── Result card stagger ──────────────────── */
+    .rcard.on { animation: fadeUp .45s ease both; }
+    .r2   > *:nth-child(1) { animation: slide-in .4s ease both .05s; }
+    .r2   > *:nth-child(2) { animation: slide-in .4s ease both .14s; }
+    .rgrid > *:nth-child(1) { animation: slide-in .4s ease both .22s; }
+    .rgrid > *:nth-child(2) { animation: slide-in .4s ease both .3s; }
+
+    /* ── Progress bar fill animation ─────────────*/
+    .pf  { transition: width .7s cubic-bezier(.4,0,.2,1); }
+    .ef  { transition: width .7s cubic-bezier(.4,0,.2,1); }
+    .trk-fill { transition: left .6s cubic-bezier(.4,0,.2,1), width .6s cubic-bezier(.4,0,.2,1); }
+
+    /* ══════════════════════════════════════════
+       TOP ROW — branding centered across both halves
+    ══════════════════════════════════════════ */
+    .top-row {
+      flex: 0 0 34%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      max-width: 520px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 24px;
+    }
+    .logo-ring {
+      width: 20px; height: 20px;
+      border: 1.5px solid rgba(238,244,235,0.4);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-ring svg { width: 10px; height: 10px; }
+    .logo-name {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: rgba(238,244,235,0.6);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .brand-hed {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2rem, 3vw, 3rem);
+      font-weight: 500;
+      color: var(--white);
+      line-height: 1.18;
+      margin-bottom: 14px;
+      letter-spacing: -0.01em;
+    }
+    .brand-hed em { font-style: italic; }
+
+    .brand-sub {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ══════════════════════════════════════════
+       FOOTER — feature names
+    ══════════════════════════════════════════ */
+    .footer {
+      flex: 0 0 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      border-top: 1px solid rgba(80,168,90,0.1);
+      position: relative;
+      z-index: 1;
+      animation: fadeIn .6s ease both 1s;
+    }
+    .ft-item {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.07em;
+      color: rgba(238,244,235,0.25);
+      padding: 0 18px;
+      transition: color 0.2s;
+      cursor: default;
+      position: relative;
+    }
+    .ft-item:hover { color: rgba(238,244,235,0.65); }
+    .ft-sep {
+      color: rgba(80,168,90,0.2);
+      font-size: 0.55rem;
+      user-select: none;
+    }
+
+    /* Tooltip */
+    .ft-item::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: calc(100% + 10px);
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      background: #1A2E1A;
+      border: 1px solid rgba(80,168,90,0.2);
+      color: rgba(238,244,235,0.8);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.04em;
+      line-height: 1.6;
+      white-space: nowrap;
+      padding: 8px 14px;
+      border-radius: 8px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+      z-index: 300;
+    }
+    .ft-item:hover::after {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+
+
+    /* ══════════════════════════════════════════
+       BOTTOM TOOL — analysis panel
+    ══════════════════════════════════════════ */
+    .bottom-tool {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-y: auto;
+      padding: 28px max(20px, calc(50% - 520px)) 24px;
+    }
+
+    .bottom-tool { position: relative; z-index: 1; }
+    .bottom-tool::-webkit-scrollbar { width: 3px; }
+    .bottom-tool::-webkit-scrollbar-track { background: transparent; }
+    .bottom-tool::-webkit-scrollbar-thumb { background: rgba(80,168,90,0.18); border-radius: 9px; }
+
+    .tool-inner {
+      width: 100%;
+      max-width: 860px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Tab row */
+    .tab-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .tab {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.63rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      border-radius: 999px;
+      border: 1.5px solid rgba(80,168,90,0.28);
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .tab:hover  { border-color: var(--accent); color: var(--accent); }
+    .tab.active { background: var(--accent); border-color: var(--accent); color: var(--dark); font-weight: 700; }
+
+    .pane { display: none; }
+    .pane.on { display: flex; flex-direction: column; }
+
+    /* Chips */
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .chip {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.05em;
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(80,168,90,0.25);
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .chip:hover { background: rgba(80,168,90,0.1); border-color: var(--accent); color: var(--white); }
+
+    /* Input card */
+    .icard {
+      background: var(--card);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .icard textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      padding: 18px 20px 12px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.74rem;
+      line-height: 1.75;
+      color: var(--card-dark);
+      resize: none;
+      min-height: 120px;
+    }
+    .icard textarea::placeholder { color: rgba(28,52,34,0.35); }
+    .ifoot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 16px;
+      border-top: 1px solid rgba(28,52,34,0.08);
+    }
+    .cc { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: rgba(28,52,34,0.38); }
+    .btn-go {
+      background: var(--card-dark);
+      color: var(--card);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.76rem;
+      font-weight: 600;
+      padding: 7px 20px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: opacity 0.18s;
+    }
+    .btn-go:hover { opacity: 0.8; }
+    .btn-go:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .hint {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.06em;
+      color: rgba(238,244,235,0.35);
+      margin-bottom: 12px;
+    }
+
+    /* ── Result card ── */
+    .rcard { display: none; background: var(--card); border-radius: 14px; overflow: hidden; }
+    .rcard.on { display: block; }
+
+    .rhead {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px 12px;
+      border-bottom: 1px solid rgba(28,52,34,0.1);
+    }
+    .r-sent { font-family: 'Cormorant Garamond', serif; font-size: 1.75rem; font-weight: 500; color: var(--card-dark); line-height: 1; }
+    .rdot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
+    .dp { background: #2E7D32; } .dn { background: #C62828; } .dz { background: #546E54; }
+    .rmeta { text-align: right; font-family: 'Space Mono', monospace; }
+    .rconf { font-size: 0.64rem; color: rgba(28,52,34,0.5); }
+    .rintensity { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; color: var(--card-dark); margin-top: 3px; }
+    .rbe { display: flex; gap: 5px; margin-top: 5px; justify-content: flex-end; }
+    .be { font-family: 'Space Mono', monospace; font-size: 0.55rem; padding: 2px 7px; border-radius: 4px; background: rgba(28,52,34,0.08); color: var(--card-dark); }
+
+    .rbody { padding: 14px 18px 16px; }
+
+    .tlabel { font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(28,52,34,0.4); margin-bottom: 6px; }
+    .trk { height: 3px; background: rgba(28,52,34,0.1); border-radius: 999px; margin-bottom: 14px; position: relative; }
+    .trk-mid { position: absolute; top: 0; left: 50%; width: 1px; height: 100%; background: rgba(28,52,34,0.18); }
+    .trk-fill { height: 100%; border-radius: 999px; transition: all .5s; position: absolute; }
+
+    .prob-row { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; font-family: 'Space Mono', monospace; font-size: 0.62rem; }
+    .pn { width: 50px; color: var(--card-dark); }
+    .pt { flex: 1; height: 3px; background: rgba(28,52,34,0.1); border-radius: 999px; }
+    .pf { height: 100%; border-radius: 999px; transition: width .5s; }
+    .pv { width: 26px; text-align: right; color: rgba(28,52,34,0.5); font-size: 0.58rem; }
+
+    .r2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 4px; }
+    .rgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .rblock { background: rgba(28,52,34,0.05); border-radius: 8px; padding: 11px; }
+
+    .em-row { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; font-family: 'Space Mono', monospace; font-size: 0.6rem; }
+    .en { width: 50px; color: var(--card-dark); text-transform: capitalize; }
+    .et { flex: 1; height: 3px; background: rgba(28,52,34,0.1); border-radius: 999px; }
+    .ef { height: 100%; border-radius: 999px; background: var(--card-dark); transition: width .5s; }
+    .ev { width: 24px; text-align: right; color: rgba(28,52,34,0.45); font-size: 0.56rem; }
+
+    .asp-wrap { display: flex; flex-wrap: wrap; gap: 5px; }
+    .asp { font-family: 'Space Mono', monospace; font-size: 0.58rem; padding: 3px 8px; border-radius: 5px; border: 1px solid rgba(28,52,34,0.15); color: var(--card-dark); background: rgba(28,52,34,0.05); }
+    .asp-pos { border-color: rgba(46,125,50,.35); background: rgba(46,125,50,.07); }
+    .asp-neg { border-color: rgba(198,40,40,.3); background: rgba(198,40,40,.06); }
+
+    /* Batch / History tables */
+    .btable, .htable { width:100%; border-collapse:separate; border-spacing:0; background:var(--card); border-radius:12px; overflow:hidden; font-family:'Space Mono',monospace; font-size:0.62rem; }
+    .btable th, .htable th { background:rgba(28,52,34,0.1); color:var(--card-dark); padding:8px 11px; text-align:left; font-weight:700; letter-spacing:.06em; }
+    .btable td, .htable td { padding:7px 11px; border-bottom:1px solid rgba(28,52,34,0.08); color:var(--card-dark); vertical-align:middle; }
+    .btable tr:last-child td, .htable tr:last-child td { border-bottom:none; }
+    .bp{color:#2E7D32;font-weight:700;} .bn{color:#B71C1C;font-weight:700;} .bz{color:#546E54;font-weight:700;}
+
+    .ghost { font-family:'Space Mono',monospace; font-size:0.6rem; letter-spacing:.08em; padding:5px 14px; border-radius:999px; border:1px solid rgba(80,168,90,0.3); color:var(--muted); background:transparent; cursor:pointer; text-decoration:none; display:inline-block; transition:all .18s; }
+    .ghost:hover { border-color:var(--accent); color:var(--accent); }
+
+    .spin { width:12px; height:12px; border:2px solid rgba(210,230,196,.3); border-top-color:var(--card); border-radius:50%; animation:rot .7s linear infinite; display:none; }
+    @keyframes rot { to { transform:rotate(360deg); } }
+
+    /* ── Tab slide-in ────────────────────────── */
+    .pane { display: none; }
+    .pane.on { display: flex; flex-direction: column; animation: tabSlide .22s ease both; }
+    @keyframes tabSlide { from{opacity:0;transform:translateX(10px)} to{opacity:1;transform:translateX(0)} }
+
+    /* ── Live typing glow ────────────────────── */
+    .icard.glow-pos { box-shadow: 0 0 0 1.5px rgba(46,125,50,0.5), 0 6px 28px rgba(46,125,50,0.14); }
+    .icard.glow-neg { box-shadow: 0 0 0 1.5px rgba(198,40,40,0.45), 0 6px 28px rgba(198,40,40,0.12); }
+    .icard.glow-neu { box-shadow: 0 0 0 1.5px rgba(80,168,90,0.25), 0 4px 18px rgba(0,0,0,0.1); }
+
+    /* ── Result card sentiment tint ──────────── */
+    .rcard { transition: background .5s ease; }
+    .rcard.sent-pos { background: linear-gradient(150deg,#D2E6C4,#c5e0b4); }
+    .rcard.sent-neg { background: linear-gradient(150deg,#D2E6C4,#dcc5c5); }
+    .rcard.sent-neu { background: #D2E6C4; }
+
+    /* ── History detail modal ───────────────── */
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(8,14,8,0.65);
+      backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity .22s ease;
+    }
+    .modal-backdrop.open { opacity: 1; pointer-events: auto; }
+    .modal-card {
+      background: var(--card);
+      border-radius: 18px;
+      width: 520px;
+      max-height: 82vh;
+      overflow-y: auto;
+      position: relative;
+      transform: translateY(16px) scale(0.97);
+      transition: transform .25s cubic-bezier(.34,1.56,.64,1);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+      margin-bottom: 52px;
+    }
+    .modal-backdrop.open .modal-card { transform: translateY(0) scale(1); }
+    .modal-close {
+      position: absolute; bottom: -44px; left: 50%; transform: translateX(-50%);
+      background: rgba(238,244,235,0.12); border: 1px solid rgba(238,244,235,0.2);
+      width: 34px; height: 34px; border-radius: 50%;
+      font-size: 0.72rem; color: rgba(238,244,235,0.7);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background .18s;
+    }
+    .modal-close:hover { background: rgba(238,244,235,0.22); }
+
+    /* Clickable history rows */
+    .htable tbody tr { cursor: pointer; transition: background .15s; }
+    .htable tbody tr:hover td { background: rgba(80,168,90,0.07); }
+
+    /* ── Fixed top-left logo ─────────────────── */
+    .top-logo {
+      position: fixed;
+      top: 0; left: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 24px 14px 20px;
+      animation: fadeIn .5s ease both .1s;
+    }
+    .top-logo .logo-name {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: rgba(238,244,235,0.6);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .top-logo .logo-ring {
+      width: 22px; height: 22px;
+      border: 1.5px solid rgba(238,244,235,0.35);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      animation: pulse-ring 3s ease-in-out infinite;
+    }
+    .top-logo .logo-ring svg { width: 11px; height: 11px; }
+
+    /* ── Batch guide strip ───────────────────── */
+    .batch-guide {
+      display: flex;
+      align-items: center;
+      background: rgba(210,230,196,0.07);
+      border: 1px solid rgba(80,168,90,0.14);
+      border-radius: 12px;
+      padding: 12px 18px;
+      margin-bottom: 12px;
+      gap: 0;
+    }
+    .bg-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+    }
+    .bg-num {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: rgba(80,168,90,0.18);
+      color: var(--accent);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.62rem;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .bg-txt {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.62rem;
+      color: rgba(238,244,235,0.45);
+      line-height: 1.5;
+    }
+    .bg-txt strong { color: rgba(238,244,235,0.7); font-weight: 700; }
+    .bg-sep {
+      width: 1px;
+      height: 28px;
+      background: rgba(80,168,90,0.15);
+      margin: 0 16px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Fixed top-left logo -->
+<div class="top-logo">
+  <div class="logo-ring">
+    <svg viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="5" cy="5" r="3.5"/>
+      <path d="M3.5 5a1.5 1.5 0 1 1 3 0"/>
+    </svg>
+  </div>
+  <span class="logo-name">SentimentAI</span>
+</div>
+
+<!-- Breathing bg halves -->
+<div class="bg-l"></div>
+<div class="bg-r"></div>
+
+<!-- ══════════════════════ TOP ROW ══════════════════════ -->
+<div class="top-row">
+
+  <div class="brand-center">
+    <h1 class="brand-hed">Every word has a feeling.<br/><em>We find it.</em></h1>
+    <p class="brand-sub">Three AI engines working as one.</p>
+  </div>
+
+
+</div><!-- /top-row -->
+
+
+<!-- ══════════════════════ BOTTOM TOOL ══════════════════════ -->
+<div class="bottom-tool">
+  <div class="tool-inner">
+
+    <!-- Tabs -->
+    <div class="tab-row">
+      <button class="tab active" id="tSingle"  onclick="sw('single')">Single</button>
+      <button class="tab"        id="tBatch"   onclick="sw('batch')">Batch</button>
+      <button class="tab"        id="tHistory" onclick="sw('history')">History</button>
+    </div>
+
+    <!-- ── Single ── -->
+    <div class="pane on" id="pSingle">
+
+      <div class="chips">
+        <button class="chip" onclick="loadCat('positive')">Positive</button>
+        <button class="chip" onclick="loadCat('negative')">Negative</button>
+        <button class="chip" onclick="loadCat('neutral')">Neutral</button>
+        <button class="chip" onclick="loadCat('excitement')">Excitement</button>
+        <button class="chip" onclick="loadCat('sarcasm')">Sarcasm</button>
+        <button class="chip" onclick="loadCat('multi')">Multi-aspect</button>
+      </div>
+
+      <div class="icard">
+        <textarea id="textInput" placeholder="Paste any text — review, tweet, feedback…" oninput="cc()"></textarea>
+        <div class="ifoot">
+          <span class="cc" id="charCount">0 / 5000</span>
+          <button class="btn-go" id="goBtn" onclick="go()">
+            <div class="spin" id="sp1"></div>
+            <span id="goLbl">Analyze</span>
+          </button>
+        </div>
+      </div>
+      <p class="hint">Ctrl + Enter to analyze</p>
+
+      <!-- Result -->
+      <div class="rcard" id="rcard">
+        <div class="rhead">
+          <div>
+            <div class="r-sent"><span class="rdot" id="rdot"></span><span id="rlab">—</span></div>
+            <div class="rbe" id="rbe"></div>
+          </div>
+          <div class="rmeta">
+            <div class="rconf" id="rconf">—</div>
+            <div class="rintensity" id="rint">—</div>
+          </div>
+        </div>
+        <div class="rbody">
+          <div class="tlabel">Sentiment Score (−1 → +1)</div>
+          <div class="trk"><div class="trk-mid"></div><div class="trk-fill" id="scFill"></div></div>
+          <div class="r2">
+            <div>
+              <div class="tlabel">Probability</div>
+              <div class="prob-row"><span class="pn">Positive</span><div class="pt"><div class="pf" id="bP" style="background:#2E7D32"></div></div><span class="pv" id="vP">—</span></div>
+              <div class="prob-row"><span class="pn">Neutral</span> <div class="pt"><div class="pf" id="bN" style="background:#546E54"></div></div><span class="pv" id="vN">—</span></div>
+              <div class="prob-row"><span class="pn">Negative</span><div class="pt"><div class="pf" id="bNeg" style="background:#B71C1C"></div></div><span class="pv" id="vNeg">—</span></div>
+            </div>
+            <div>
+              <div class="tlabel">Sarcasm</div>
+              <div style="font-family:'Space Mono',monospace;font-size:.64rem;color:var(--card-dark);margin-bottom:5px;" id="sarLab">—</div>
+              <div class="trk"><div class="trk-fill" id="sarFill"></div></div>
+              <div style="margin-top:10px;"><div class="tlabel">Text</div><div style="font-family:'Space Mono',monospace;font-size:.6rem;color:rgba(28,52,34,.6);" id="tStats">—</div></div>
+            </div>
+          </div>
+          <div class="rgrid">
+            <div class="rblock"><div class="tlabel">Emotions</div><div id="emRows"></div></div>
+            <div class="rblock"><div class="tlabel">Aspects</div><div class="asp-wrap" id="aspW"><span style="font-family:'Space Mono',monospace;font-size:.58rem;color:rgba(28,52,34,.4);">None detected.</span></div></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /pSingle -->
+
+    <!-- ── Batch ── -->
+    <div class="pane" id="pBatch">
+
+      <!-- Explainer strip -->
+      <div class="batch-guide">
+        <div class="bg-step"><span class="bg-num">1</span><span class="bg-txt">Type or paste multiple texts below — <strong>one per line</strong></span></div>
+        <div class="bg-sep"></div>
+        <div class="bg-step"><span class="bg-num">2</span><span class="bg-txt">Hit <strong>Run Batch</strong> — up to 50 texts at once</span></div>
+        <div class="bg-sep"></div>
+        <div class="bg-step"><span class="bg-num">3</span><span class="bg-txt">See sentiment, score &amp; confidence for <strong>each line</strong></span></div>
+      </div>
+
+      <div class="icard">
+        <textarea id="bIn" style="min-height:110px;" placeholder="The pizza was amazing!&#10;Delivery took way too long.&#10;The packaging was okay I guess." oninput="bc()"></textarea>
+        <div class="ifoot">
+          <span class="cc" id="bcc">0 lines</span>
+          <button class="btn-go" id="bBtn" onclick="runBatch()">
+            <div class="spin" id="sp2"></div>
+            <span id="bLbl">Run Batch</span>
+          </button>
+        </div>
+      </div>
+      <p class="hint" style="margin-bottom:12px;">Results appear below · exportable as CSV</p>
+      <div style="overflow-x:auto;">
+        <table class="btable">
+          <thead><tr><th>#</th><th>Text</th><th>Sentiment</th><th>Score</th><th>Conf.</th></tr></thead>
+          <tbody id="bBody"><tr><td colspan="5" style="padding:14px;text-align:center;color:rgba(28,52,34,.4);">Paste some texts above and hit Run Batch.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── History ── -->
+    <div class="pane" id="pHistory">
+      <div id="histDonut"></div>
+      <div style="display:flex;gap:8px;margin-bottom:11px;flex-wrap:wrap;">
+        <button class="ghost" onclick="loadHist()">Refresh</button>
+        <a class="ghost" href="/export_csv">Export CSV</a>
+        <button class="ghost" style="margin-left:auto;" onclick="clr()">Clear All</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="htable">
+          <thead><tr><th>Time</th><th>Text</th><th>Sent.</th><th>Score</th><th>Conf.</th><th>Intensity</th></tr></thead>
+          <tbody id="hBody"><tr><td colspan="6" style="padding:14px;text-align:center;color:rgba(28,52,34,.4);">No history yet.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /tool-inner -->
+</div><!-- /bottom-tool -->
+
+
+<!-- ══════════════════════ HISTORY DETAIL MODAL ══════════════════════ -->
+<div class="modal-backdrop" id="histModal" onclick="closeModal(event)">
+  <div class="modal-card" id="modalCard">
+    <button class="modal-close" onclick="hideModal()">✕</button>
+
+    <div class="rhead">
+      <div>
+        <div class="r-sent"><span class="rdot" id="mDot"></span><span id="mLab">—</span></div>
+        <div style="font-family:'Space Mono',monospace;font-size:0.6rem;color:rgba(28,52,34,0.45);margin-top:5px;" id="mTime">—</div>
+      </div>
+      <div class="rmeta">
+        <div class="rconf" id="mConf">—</div>
+        <div class="rintensity" id="mInt">—</div>
+      </div>
+    </div>
+
+    <div class="rbody">
+      <!-- Text snippet -->
+      <div class="tlabel" style="margin-bottom:4px;">Text</div>
+      <div id="mText" style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--card-dark);line-height:1.7;margin-bottom:14px;opacity:0.75;"></div>
+
+      <!-- Score bar -->
+      <div class="tlabel">Sentiment Score (−1 → +1)</div>
+      <div class="trk" style="margin-bottom:14px;"><div class="trk-mid"></div><div class="trk-fill" id="mScFill"></div></div>
+
+      <!-- Sarcasm -->
+      <div class="tlabel">Sarcasm</div>
+      <div style="font-family:'Space Mono',monospace;font-size:.64rem;color:var(--card-dark);margin-bottom:5px;" id="mSarLab">—</div>
+      <div class="trk" style="margin-bottom:14px;"><div class="trk-fill" id="mSarFill"></div></div>
+
+      <!-- Emotions -->
+      <div class="tlabel">Emotions</div>
+      <div id="mEmRows"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ FOOTER ══════════════════════ -->
+<footer class="footer">
+  <span class="ft-item" data-tip="VADER rules + ML + Neural AI fused together for higher accuracy">Multi-backend Analysis</span>
+  <span class="ft-sep">·</span>
+  <span class="ft-item" data-tip="Detects joy, sadness, anger, fear, surprise & disgust in your text">Emotion Detection</span>
+  <span class="ft-sep">·</span>
+  <span class="ft-item" data-tip="Scores individual topics separately — e.g. 'great food, terrible service'">Aspect-based Sentiment</span>
+  <span class="ft-sep">·</span>
+  <span class="ft-item" data-tip="Spots irony and sarcasm — returns a 0–100% confidence score">Sarcasm Detection</span>
+  <span class="ft-sep">·</span>
+  <span class="ft-item" data-tip="Paste up to 50 texts at once and get results for each line">Batch Processing</span>
+</footer>
+
+
+<script>
+/* ── Cursor glow ─────────────────────────────────────── */
+const _cg = document.createElement('div');
+_cg.style.cssText = 'position:fixed;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(80,168,90,0.06) 0%,transparent 65%);pointer-events:none;z-index:1;transform:translate(-50%,-50%);transition:left .1s ease,top .1s ease;';
+document.body.appendChild(_cg);
+document.addEventListener('mousemove', e => { _cg.style.left=e.clientX+'px'; _cg.style.top=e.clientY+'px'; });
+
+/* ── Utility: count-up animator ─────────────────────── */
+function animateNum(setter, from, to, duration=700) {
+  const start = performance.now();
+  (function step(now) {
+    const p = Math.min((now-start)/duration, 1);
+    const ease = 1 - Math.pow(1-p, 3);
+    setter(from + (to-from)*ease);
+    if (p < 1) requestAnimationFrame(step);
+  })(performance.now());
+}
+
+/* ── Utility: typewriter ─────────────────────────────── */
+function typewrite(el, text, speed=55) {
+  el.textContent = '';
+  let i = 0;
+  (function type() { if (i < text.length) { el.textContent += text[i++]; setTimeout(type, speed); } })();
+}
+
+/* ── Utility: confetti burst ─────────────────────────── */
+function confettiBurst(x, y) {
+  const cols = ['#50A85A','#8ee898','#D2E6C4','#6dcc78','#a8e6b0','#EEF4EB'];
+  for (let i = 0; i < 36; i++) {
+    const el = document.createElement('div');
+    const sz = 4+Math.random()*5;
+    el.style.cssText = `position:fixed;width:${sz}px;height:${sz}px;border-radius:${Math.random()>.5?'50%':'2px'};background:${cols[i%cols.length]};left:${x}px;top:${y}px;pointer-events:none;z-index:9999;`;
+    document.body.appendChild(el);
+    const angle = Math.random()*Math.PI*2, spd = 3+Math.random()*7;
+    let vx=Math.cos(angle)*spd, vy=Math.sin(angle)*spd-3, px=x, py=y, op=1;
+    (function frame(){ vx*=.97; vy=vy*.97+.25; px+=vx; py+=vy; op-=.02;
+      el.style.left=px+'px'; el.style.top=py+'px'; el.style.opacity=op;
+      if(op>0) requestAnimationFrame(frame); else el.remove();
+    })();
+  }
+}
+
+/* ── Utility: history donut chart ────────────────────── */
+function renderDonut(pos, neu, neg) {
+  const total = pos+neu+neg;
+  if (!total) return '';
+  const r=26,cx=34,cy=34,sw=10,circ=2*Math.PI*r;
+  const pa=(pos/total)*circ, na=(neu/total)*circ, nga=(neg/total)*circ;
+  return `<div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;background:rgba(210,230,196,0.07);border:1px solid rgba(80,168,90,0.12);border-radius:12px;padding:12px 16px;">
+    <svg width="68" height="68" viewBox="0 0 68 68" style="flex-shrink:0">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(28,52,34,0.12)" stroke-width="${sw}"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#2E7D32" stroke-width="${sw}" stroke-dasharray="${pa} ${circ}" stroke-dashoffset="0" transform="rotate(-90 ${cx} ${cy})"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#546E54" stroke-width="${sw}" stroke-dasharray="${na} ${circ}" stroke-dashoffset="${-pa}" transform="rotate(-90 ${cx} ${cy})"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#B71C1C" stroke-width="${sw}" stroke-dasharray="${nga} ${circ}" stroke-dashoffset="${-(pa+na)}" transform="rotate(-90 ${cx} ${cy})"/>
+      <text x="${cx}" y="${cy+4}" text-anchor="middle" font-family="Space Mono,monospace" font-size="9" fill="rgba(238,244,235,0.5)">${total}</text>
+    </svg>
+    <div style="font-family:'Space Mono',monospace;font-size:0.6rem;display:flex;flex-direction:column;gap:6px;">
+      <span style="color:#5da860">● Positive — ${pos} (${Math.round(pos/total*100)}%)</span>
+      <span style="color:#708c70">● Neutral &nbsp;— ${neu} (${Math.round(neu/total*100)}%)</span>
+      <span style="color:#b05555">● Negative — ${neg} (${Math.round(neg/total*100)}%)</span>
+    </div>
+  </div>`;
+}
+
+/* ── Live glow while typing ──────────────────────────── */
+const _posW = new Set(['great','amazing','fantastic','love','excellent','wonderful','perfect','good','best','happy','beautiful','awesome','superb','brilliant','outstanding','incredible','loved','delightful','pleased','glad']);
+const _negW = new Set(['terrible','awful','hate','worst','horrible','bad','poor','disappointing','useless','broken','disgusting','angry','dreadful','appalling','mediocre','ruined','failed','awful','rude','pathetic']);
+function liveGlow() {
+  const card = document.querySelector('#pSingle .icard');
+  const text = document.getElementById('textInput').value.toLowerCase();
+  card.classList.remove('glow-pos','glow-neg','glow-neu');
+  if (!text.trim()) return;
+  const words = text.match(/\w+/g)||[];
+  const pos = words.filter(w=>_posW.has(w)).length;
+  const neg = words.filter(w=>_negW.has(w)).length;
+  if (pos > neg) card.classList.add('glow-pos');
+  else if (neg > pos) card.classList.add('glow-neg');
+  else card.classList.add('glow-neu');
+}
+
+/* ── Tab switch with slide animation ─────────────────── */
+function sw(name) {
+  ['single','batch','history'].forEach(n => {
+    const p = document.getElementById('p'+cap(n));
+    if (n === name) { p.classList.remove('on'); void p.offsetWidth; p.classList.add('on'); }
+    else p.classList.remove('on');
+    document.getElementById('t'+cap(n)).classList.toggle('active', n===name);
+  });
+  if (name==='history') loadHist();
+}
+const cap = s => s[0].toUpperCase()+s.slice(1);
+
+/* ── Animated typing placeholder ── */
+const _placeholders = [
+  "Paste any text — review, tweet, feedback…",
+  "How did that product review make you feel?",
+  "Drop a customer comment to analyse it…",
+  "Try a movie review, news headline, or message…",
+  "Paste social media text to detect sentiment…",
+];
+let _phIdx = 0, _phChar = 0, _phDir = 1, _phTimeout;
+function animatePlaceholder() {
+  const ta = document.getElementById('textInput');
+  if (document.activeElement === ta) { _phTimeout = setTimeout(animatePlaceholder, 120); return; }
+  const full = _placeholders[_phIdx];
+  if (_phDir === 1) {
+    _phChar++;
+    ta.placeholder = full.slice(0, _phChar);
+    if (_phChar >= full.length) { _phDir = -1; _phTimeout = setTimeout(animatePlaceholder, 2200); return; }
+  } else {
+    _phChar--;
+    ta.placeholder = full.slice(0, _phChar);
+    if (_phChar <= 0) { _phDir = 1; _phIdx = (_phIdx + 1) % _placeholders.length; _phTimeout = setTimeout(animatePlaceholder, 400); return; }
+  }
+  _phTimeout = setTimeout(animatePlaceholder, _phDir === 1 ? 42 : 22);
+}
+animatePlaceholder();
+
+function cc() {
+  const v = document.getElementById('textInput').value;
+  document.getElementById('charCount').textContent = v.length+' / 5000';
+  document.getElementById('goBtn').classList.toggle('ready', v.trim().length > 0);
+  liveGlow();
+  // Hide result card when textarea is emptied
+  if (!v.trim()) {
+    const rc = document.getElementById('rcard');
+    rc.classList.remove('on','sent-pos','sent-neg','sent-neu');
+    document.querySelector('#pSingle .icard').classList.remove('glow-pos','glow-neg','glow-neu');
+  }
+}
+function bc() {
+  const n = document.getElementById('bIn').value.trim().split('\n').filter(Boolean).length;
+  document.getElementById('bcc').textContent = n+' line'+(n!==1?'s':'');
+}
+const _examples = {
+  positive: [
+    "This movie was absolutely fantastic! The acting was superb and the story kept me hooked.",
+    "Best purchase I've ever made. Exceeded every expectation — completely blown away.",
+    "The customer support team was incredibly helpful and resolved my issue within minutes.",
+    "What a breathtaking experience! I'd highly recommend this to everyone I know.",
+    "The food was divine. Every single dish was perfectly seasoned and beautifully presented."
+  ],
+  negative: [
+    "Terrible service. Waited an hour and nobody helped me. Never coming back.",
+    "Completely broken on arrival. The packaging was a joke and returns are a nightmare.",
+    "Worst experience of my life. Rude staff, filthy rooms, and they charged me twice.",
+    "Total waste of money. Stopped working after two days and support is unreachable.",
+    "I'm genuinely shocked at how bad this is. Misleading description, cheap materials."
+  ],
+  neutral: [
+    "The product is okay. Nothing amazing but does the job.",
+    "Delivery was on time. Item matches the description. No complaints, no praise.",
+    "It's an average hotel. The bed was fine, the location was central, breakfast was mediocre.",
+    "The software works as advertised. Setup took longer than expected but it runs fine.",
+    "Not bad, not great. I expected more for the price but I can see why others like it."
+  ],
+  excitement: [
+    "OH MY GOD WE WON!!! I can't believe it — this is the greatest moment of my entire life!!!",
+    "Just got the call — I got the job!!! I'm literally shaking right now, I can't stop screaming!!",
+    "THE CONCERT WAS INSANE. I've never felt energy like that in my life. I'm still buzzing!!",
+    "We're going to TOKYO!! Booked the flights, it's happening, I cannot breathe right now!!",
+    "They just announced a season 4!!! I've been waiting THREE YEARS for this. I'm losing my mind!!"
+  ],
+  sarcasm: [
+    "Oh wow yeah right. Great idea. Totally going to work out perfectly.",
+    "Sure, because waiting three hours for a table is everyone's idea of a fun evening.",
+    "Fantastic. Another update that broke everything. My absolute favourite.",
+    "Oh brilliant — they removed the one feature I actually used. Genius move.",
+    "Yeah, the traffic was *wonderful* today. Really made my morning."
+  ],
+  multi: [
+    "Cinematography was breathtaking but the acting was dreadfully wooden.",
+    "The laptop has a stunning display and blazing speed, though the battery life is disappointing.",
+    "Great story and wonderful characters — shame about the abysmal pacing in the third act.",
+    "Food was outstanding, but the service was slow and the ambiance was uncomfortably loud.",
+    "The hotel location is perfect and the rooms are spacious, yet the check-in process was chaotic."
+  ]
+};
+const _idx = { positive:0, negative:0, neutral:0, excitement:0, sarcasm:0, multi:0 };
+
+function loadCat(cat) {
+  const pool = _examples[cat];
+  const t = pool[_idx[cat] % pool.length];
+  _idx[cat]++;
+  document.getElementById('textInput').value = t;
+  cc();
+  if (!document.getElementById('pSingle').classList.contains('on')) sw('single');
+}
+
+function loadEx(t) { document.getElementById('textInput').value=t; cc(); sw('single'); }
+document.addEventListener('keydown', e => { if((e.ctrlKey||e.metaKey)&&e.key==='Enter') go(); });
+
+async function go() {
+  const text = document.getElementById('textInput').value.trim();
+  if (!text) return;
+  if (text.length>5000) { alert('Too long (max 5000).'); return; }
+  load('goBtn','sp1','goLbl',true,'Analyzing…');
+  try {
+    const r = await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+    const d = await r.json();
+    if (d.error){alert(d.error);return;}
+    render(d);
+  } catch(e){alert('Failed: '+e.message);}
+  finally { load('goBtn','sp1','goLbl',false,'Analyze'); }
+}
+
+function load(b,s,l,on,txt){
+  document.getElementById(b).disabled=on;
+  document.getElementById(s).style.display=on?'block':'none';
+  document.getElementById(l).textContent=txt;
+}
+
+function render(d) {
+  const rc = document.getElementById('rcard');
+  rc.classList.remove('on','sent-pos','sent-neg','sent-neu');
+  void rc.offsetWidth;
+  rc.classList.add('on');
+  const s = d.sentiment;
+  rc.classList.add('sent-'+(s==='positive'?'pos':s==='negative'?'neg':'neu'));
+
+  document.getElementById('rdot').className='rdot d'+(s==='positive'?'p':s==='negative'?'n':'z');
+
+  // 4. Typewriter on sentiment label
+  typewrite(document.getElementById('rlab'), s[0].toUpperCase()+s.slice(1), 55);
+
+  // 2. Count-up on confidence
+  animateNum(v => document.getElementById('rconf').textContent=Math.round(v)+'% confidence', 0, d.confidence||0);
+  document.getElementById('rint').textContent=d.intensity||'';
+  document.getElementById('rbe').innerHTML=(d.backends_used||[]).map(b=>`<span class="be">${b}</span>`).join('');
+
+  const sc=d.sentiment_score||0, pct=((sc+1)/2)*100;
+  const f=document.getElementById('scFill');
+  if(sc>=0){f.style.left='50%';f.style.width=(pct-50)+'%';f.style.background='#2E7D32';}
+  else{f.style.left=pct+'%';f.style.width=(50-pct)+'%';f.style.background='#B71C1C';}
+
+  // 2. Count-up on probabilities
+  animateNum(v=>{ document.getElementById('bP').style.width=Math.round(v)+'%'; document.getElementById('vP').textContent=Math.round(v)+'%'; }, 0, d.probabilities?.positive||0);
+  animateNum(v=>{ document.getElementById('bN').style.width=Math.round(v)+'%'; document.getElementById('vN').textContent=Math.round(v)+'%'; }, 0, d.probabilities?.neutral||0);
+  animateNum(v=>{ document.getElementById('bNeg').style.width=Math.round(v)+'%'; document.getElementById('vNeg').textContent=Math.round(v)+'%'; }, 0, d.probabilities?.negative||0);
+
+  const sp=(d.sarcasm_score||0)*100;
+  animateNum(v=>{
+    document.getElementById('sarLab').textContent=(v<25?'Low':v<55?'Moderate':'High')+' — '+Math.round(v)+'%';
+    const sf=document.getElementById('sarFill');
+    sf.style.width=Math.round(v)+'%'; sf.style.background=v<25?'#2E7D32':v<55?'#7B5E00':'#B71C1C';
+  }, 0, sp);
+  document.getElementById('tStats').textContent=(d.word_count||0)+' words · '+(d.char_count||0)+' chars';
+
+  // 2. Count-up on emotions
+  const emos=['joy','sadness','anger','fear','surprise','disgust'];
+  document.getElementById('emRows').innerHTML=emos.map(e=>
+    `<div class="em-row"><span class="en">${e}</span><div class="et"><div class="ef" id="ef_${e}" style="width:0%"></div></div><span class="ev" id="ev_${e}">0%</span></div>`
+  ).join('');
+  emos.forEach(e=>{
+    const v=(d.emotions||{})[e]||0;
+    animateNum(val=>{ document.getElementById('ef_'+e).style.width=Math.round(val)+'%'; document.getElementById('ev_'+e).textContent=Math.round(val)+'%'; }, 0, v, 850);
+  });
+
+  const asp=d.aspects||[];
+  document.getElementById('aspW').innerHTML=asp.length
+    ? asp.map(a=>`<span class="asp asp-${a.sentiment==='positive'?'pos':a.sentiment==='negative'?'neg':''}">${a.sentiment==='positive'?'↑':a.sentiment==='negative'?'↓':'→'} ${a.aspect}</span>`).join('')
+    : '<span style="font-family:\'Space Mono\',monospace;font-size:.58rem;color:rgba(28,52,34,.4);">None detected.</span>';
+
+  // 6. Confetti for strong positive
+  if (s==='positive' && (d.confidence||0) > 65) {
+    const btn=document.getElementById('goBtn'), r=btn.getBoundingClientRect();
+    confettiBurst(r.left+r.width/2, r.top+r.height/2);
+  }
+}
+
+async function runBatch(){
+  const raw=document.getElementById('bIn').value.trim();
+  if(!raw)return;
+  const texts=raw.split('\n').map(t=>t.trim()).filter(Boolean).slice(0,50);
+  load('bBtn','sp2','bLbl',true,'Running…');
+  try{
+    const r=await fetch('/batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texts})});
+    const d=await r.json();
+    if(d.error){alert(d.error);return;}
+    document.getElementById('bBody').innerHTML=(d.results||[]).map((res,i)=>{
+      const c='b'+(res.sentiment==='positive'?'p':res.sentiment==='negative'?'n':'z');
+      return `<tr><td style="color:rgba(28,52,34,.4)">${i+1}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(texts[i])}">${esc(texts[i].substring(0,60))}${texts[i].length>60?'…':''}</td><td class="${c}">${res.sentiment}</td><td style="font-weight:700">${(res.sentiment_score||0).toFixed(3)}</td><td>${Math.round(res.confidence||0)}%</td></tr>`;
+    }).join('');
+  }catch(e){alert('Batch failed: '+e.message);}
+  finally{load('bBtn','sp2','bLbl',false,'Run Batch');}
+}
+
+async function loadHist(){
+  try{
+    const items=await(await fetch('/history?limit=200')).json();
+    const donut=document.getElementById('histDonut');
+    if(!items.length){
+      document.getElementById('hBody').innerHTML='<tr><td colspan="6" style="padding:14px;text-align:center;color:rgba(28,52,34,.4);">No history yet.</td></tr>';
+      if(donut) donut.innerHTML='';
+      return;
+    }
+    // 9. Donut chart
+    if(donut){
+      const pos=items.filter(i=>i.sentiment==='positive').length;
+      const neu=items.filter(i=>i.sentiment==='neutral').length;
+      const neg=items.filter(i=>i.sentiment==='negative').length;
+      donut.innerHTML=renderDonut(pos,neu,neg);
+    }
+    document.getElementById('hBody').innerHTML=[...items].reverse().map(it=>{
+      const c='b'+(it.sentiment==='positive'?'p':it.sentiment==='negative'?'n':'z');
+      const data = encodeURIComponent(JSON.stringify(it));
+      return `<tr onclick="showHistDetail('${data}')"><td style="color:rgba(28,52,34,.4);white-space:nowrap">${new Date(it.timestamp).toLocaleTimeString()}</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((it.text||'').substring(0,55))}${(it.text||'').length>55?'…':''}</td><td class="${c}">${it.sentiment}</td><td style="font-weight:700">${(it.sentiment_score||0).toFixed(3)}</td><td>${Math.round(it.confidence||0)}%</td><td>${it.intensity||'—'}</td></tr>`;
+    }).join('');
+  }catch{}
+}
+
+async function clr(){if(!confirm('Clear all history?'))return;await fetch('/clear_history',{method:'POST'});loadHist();}
+
+/* ── History detail modal ──────────────────────────── */
+function showHistDetail(encoded) {
+  const it = JSON.parse(decodeURIComponent(encoded));
+  const s = it.sentiment;
+  const modal = document.getElementById('histModal');
+  const card  = document.getElementById('modalCard');
+
+  // Sentiment tint
+  card.classList.remove('sent-pos','sent-neg','sent-neu');
+  card.classList.add('sent-'+(s==='positive'?'pos':s==='negative'?'neg':'neu'));
+
+  document.getElementById('mDot').className = 'rdot d'+(s==='positive'?'p':s==='negative'?'n':'z');
+  typewrite(document.getElementById('mLab'), s[0].toUpperCase()+s.slice(1), 50);
+  document.getElementById('mTime').textContent = new Date(it.timestamp).toLocaleString();
+  document.getElementById('mConf').textContent = Math.round(it.confidence||0)+'% confidence';
+  document.getElementById('mInt').textContent  = it.intensity||'';
+  document.getElementById('mText').textContent = it.text||'';
+
+  // Score bar
+  const sc = it.sentiment_score||0, pct = ((sc+1)/2)*100;
+  const f = document.getElementById('mScFill');
+  if(sc>=0){f.style.left='50%';f.style.width=(pct-50)+'%';f.style.background='#2E7D32';}
+  else{f.style.left=pct+'%';f.style.width=(50-pct)+'%';f.style.background='#B71C1C';}
+
+  // Sarcasm
+  const sp = (it.sarcasm_score||0)*100;
+  animateNum(v=>{
+    document.getElementById('mSarLab').textContent=(v<25?'Low':v<55?'Moderate':'High')+' — '+Math.round(v)+'%';
+    const sf=document.getElementById('mSarFill');
+    sf.style.width=Math.round(v)+'%'; sf.style.background=v<25?'#2E7D32':v<55?'#7B5E00':'#B71C1C';
+  }, 0, sp);
+
+  // Emotions
+  const emos=['joy','sadness','anger','fear','surprise','disgust'];
+  document.getElementById('mEmRows').innerHTML=emos.map(e=>
+    `<div class="em-row"><span class="en">${e}</span><div class="et"><div class="ef" id="mef_${e}" style="width:0%"></div></div><span class="ev" id="mev_${e}">0%</span></div>`
+  ).join('');
+  emos.forEach(e=>{
+    const v=(it.emotions||{})[e]||0;
+    animateNum(val=>{ document.getElementById('mef_'+e).style.width=Math.round(val)+'%'; document.getElementById('mev_'+e).textContent=Math.round(val)+'%'; }, 0, v, 700);
+  });
+
+  modal.classList.add('open');
+}
+
+function hideModal() { document.getElementById('histModal').classList.remove('open'); }
+function closeModal(e) { if(e.target === document.getElementById('histModal')) hideModal(); }
+document.addEventListener('keydown', e => { if(e.key==='Escape') hideModal(); });
+
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+</script>
+</body>
+</html>
