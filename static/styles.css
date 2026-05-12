@@ -281,6 +281,7 @@ a { color: inherit; }
   gap: var(--gap);
   align-items: start;
 }
+
 @media (max-width: 768px) {
   .analyzer { grid-template-columns: 1fr; }
 }
@@ -371,7 +372,7 @@ a { color: inherit; }
 
 /* ====== Result reveal ====== */
 .result-card {
-  min-height: 460px;
+  min-height: 750px;
   position: relative;
   overflow: hidden;
 }
