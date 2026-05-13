@@ -372,7 +372,7 @@ a { color: inherit; }
 
 /* ====== Result reveal ====== */
 .result-card {
-  min-height: 750px;
+  min-height: 700px;
   position: relative;
   overflow: hidden;
 }

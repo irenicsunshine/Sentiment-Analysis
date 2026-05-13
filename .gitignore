@@ -31,3 +31,6 @@ notebooks/.ipynb_checkpoints/
 # Unused old model
 models/enhanced_sentiment_model.pkl
 notebooks/
+
+# Personal readings / research notes
+readings/
