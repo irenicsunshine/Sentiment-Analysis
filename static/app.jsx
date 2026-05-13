@@ -2,10 +2,10 @@
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "theme": "dark",
-  "accent": "green",
-  "typeface": "sans",
+  "accent": "amber",
+  "typeface": "serif",
   "density": "comfortable",
-  "scoreVis": "bar",
+  "scoreVis": "donut",
   "showBackends": true
 }/*EDITMODE-END*/;
 
